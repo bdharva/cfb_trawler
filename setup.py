@@ -29,7 +29,7 @@ setup(
 	name = 'cfb_trawler',
 	version = '0.1.1',
 	description = 'Trawling for college football game results',
-	url = '',
+	url = 'https://github.com/bdharva/cfb_trawler',
 	author = 'Ben Harvatine',
 	author_email = 'bdharva@alum.mit.edu',
 	license = 'MIT',
