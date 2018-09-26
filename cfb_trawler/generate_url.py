@@ -23,8 +23,26 @@
 # SOFTWARE.
 
 
-from .coordinator import *
-from .gameflow import *
-from .generate_url import *
-from .matchup import *
-from .metadata import *
+def generate_url(data, arg_1=None, arg_2=None):
+
+	if data == 'matchups':
+
+		if arg_2 < 16:
+			return 'http://www.espn.com/college-football/scoreboard/_/'\
+			+ 'group/80/year/%s/seasontype/2/week/%s'\
+			% (str(arg_1), str(arg_2))
+
+		elif arg_2 == 16:
+			return 'http://www.espn.com/college-football/scoreboard/_/'\
+			+ 'group/80/year/%s/seasontype/3/week/1'\
+			% (str(arg_1))
+
+	elif data == 'gameflow':
+
+		return 'http://www.espn.com/college-football/playbyplay?'\
+		+ 'gameId=%s' % (str(arg_1))
+
+	elif data == 'metadata':
+
+		return 'http://www.espn.com/college-football/game?gameId=%s'\
+		% (str(arg_1))

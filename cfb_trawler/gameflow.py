@@ -157,7 +157,7 @@ class Gameflow_Extractor(HTMLParser):
 
 		elif tag == 'img':
 
-			if ('class', 'team-logo') in attrs and self.in_header:
+			if ('class', 'team-logo imageLoaded') in attrs and self.in_header:
 
 				for key, value in attrs:
 

@@ -24,16 +24,20 @@
 
 
 from .gameflow import *
+from .generate_url import *
 from .matchup import *
 from .metadata import *
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
-from time import sleep
 import csv
+import os
+import random
+import time
 
 
-def coordinator(year, week, weeks = 1, data = 'all'):
+def coordinator(year, week, weeks=1, data='all'):
 
+	start_time = time.clock()
 	start_week = week
 	end_week = week + weeks
 
@@ -45,31 +49,26 @@ def coordinator(year, week, weeks = 1, data = 'all'):
 	driver = webdriver.Chrome('/usr/local/bin/chromedriver',\
 	chrome_options=options)
 
+	if not os.path.exists('exports'):
+		os.mkdir('exports')
+
 	for i in range(start_week, end_week):
-		url = None
-
-		if i < 16:
-			url = 'http://www.espn.com/college-football/scoreboard/_/'\
-			+ 'group/80/year/%s/seasontype/2/week/%s'\
-			% (str(year), str(i))
-
-		elif i == 16:
-			url = 'http://www.espn.com/college-football/scoreboard/_/'
-			+ 'group/80/year/%s/seasontype/3/week/1'\
-			% (str(year))
-
 		print('Trawling week ' + str(i) + ' of the ' + str(year)\
-		+ ' season...')
-		driver.get(url)
-		print('    * Loaded ' + url)
+			+ ' season...')
 
 		if data == 'matchups' or data == 'all':
+			url = generate_url('matchups', year, i)
+			driver.get(url)
+			print('    * Loaded ' + url)
 			print('    * Extracting matchups')
 			results = Matchup_Extractor().getResults(driver.page_source)
 			print('    * Writing results')
 
-			with open('exports/matchups_' + str(year) + '_week' +\
-			str(week) + '.csv', 'w') as output:
+			if not os.path.exists('exports/matchups'):
+				os.mkdir('exports/matchups')
+
+			with open('exports/matchups/' + str(year) + '_week_'\
+			+ str(i) + '.csv', 'w') as output:
 				writer = csv.writer(output, lineterminator='\n')
 				writer.writerow(['year', 'week', 'game_id',\
 					'away_team', 'away_team_rank', 'away_team_record',\
@@ -84,41 +83,122 @@ def coordinator(year, week, weeks = 1, data = 'all'):
 					result.home_team.record, result.home_team.score])
 
 			print('    * Results written')
+			delay = random.randrange(10)
+			print('    * Waiting ' + str(delay) + ' seconds...')
+			time.sleep(delay)
 
-		#if data == 'metadata' or data == 'all':
-			# do something
-			# http://www.espn.com/college-football/game?gameId=401019470
+		if data == 'metadata' or data == 'all' or data == 'testing':
 
-		#if data == 'gameflow' or data == 'all':
-			# do something
+			if not os.path.exists('exports/matchups/' + str(year)\
+			+ '_week_' + str(i) + '.csv'):
+				print('    * Error: No matchups found')
 
-# # From gameflow
+			else:
+				game_ids = []
 
-# if __name__ == '__main__':
+				with open('exports/matchups/' + str(year) + '_week_'\
+				+ str(i) + '.csv', 'r') as infile:
+					reader = csv.reader(infile, lineterminator='\n')
+					next(reader)
 
-# 	options = Options()
-# 	options.add_argument('--headless')
-# 	driver = webdriver.Chrome('/usr/local/bin/chromedriver', chrome_options=options)
+					for row in reader:
+						game_ids.append(row[2])
 
-# 	#driver = webdriver.PhantomJS()
+				if not os.path.exists('exports/metadata'):
+					os.mkdir('exports/metadata')
 
-# 	#year = sys.argv[1]
-# 	#week = sys.argv[2]
-# 	game_id = 400935379
-# 	# url = 'http://www.espn.com/college-football/scoreboard/_/year/%s/seasontype/2/week/%s' % (str(year), str(week))
-# 	url = 'http://www.espn.com/college-football/playbyplay?gameId=%s' % (str(game_id))
-# 	print(url)
-# 	driver.get(url)
-# 	print('Starting extractor...')
-# 	results = Extractor().getResults(driver.page_source)
-# 	with open('exports/drives.csv', 'w') as output:
-# 		writer = csv.writer(output, lineterminator='\n')
-# 		writer.writerow(['game_id','team','result','summary','home_team','home_score','away_team','away_score'])
-# 		for drive in results.drives:
-# 			writer.writerow([drive.game_id, drive.team, drive.result, drive.summary, drive.home_team, drive.home_score, drive.away_team, drive.away_score])
-# 	with open('exports/plays.csv', 'w') as output:
-# 		writer = csv.writer(output, lineterminator='\n')
-# 		writer.writerow(['game_id','team','summary','description'])
-# 		for play in results.plays:
-# 			writer.writerow([play.game_id, play.team, play.summary, play.description])
-# 	print('Completed!')
+				with open('exports/metadata/' + str(year) + '_week_'\
+				+ str(i) + '.csv', 'w') as output:
+					writer = csv.writer(output, lineterminator='\n')
+					writer.writerow(['game_id', 'venue', 'date_time',\
+					'network', 'town', 'zipcode', 'odds', 'attendance',\
+					'capcity'])
+
+					for game_id in game_ids:
+						url = generate_url('metadata', game_id)
+						driver.get(url)
+						print('    * Loaded ' + url)
+						print('        * Extracting matchup metadata')
+						result = Metadata_Extractor()\
+						.getResults(driver.page_source)
+						print('        * Writing results')
+						writer.writerow([result.game_id, result.venue,\
+						result.date_time, result.network, result.town,\
+						result.zipcode, result.odds, result.attendance,\
+						result.capacity])
+						delay = random.randrange(10)
+						print('        * Waiting ' + str(delay)\
+						+ ' seconds...')
+						time.sleep(delay)
+
+		if data == 'gameflow' or data == 'all':
+
+			if not os.path.exists('exports/matchups/' + str(year)\
+			+ '_week_' + str(i) + '.csv'):
+				print('    * Error: No matchups found')
+
+			else:
+				game_ids = []
+
+				with open('exports/matchups/' + str(year) + '_week_'\
+				+ str(i) + '.csv', 'r') as infile:
+					reader = csv.reader(infile, lineterminator='\n')
+					next(reader)
+
+					for row in reader:
+						game_ids.append(row[2])
+
+				for game_id in game_ids:
+					url = generate_url('gameflow', game_id)
+					print(url)
+					driver.get(url)
+					print('    * Loaded ' + url)
+					print('    * Extracting gameflow')
+					result = Gameflow_Extractor()\
+					.getResults(driver.page_source)
+					print('    * Writing results')
+
+					if not os.path.exists('exports/gameflow'):
+						os.mkdir('exports/gameflow')
+
+					if not os.path.exists('exports/gameflow/drives'):
+						os.mkdir('exports/gameflow/drives')
+
+					if not os.path.exists('exports/gameflow/plays'):
+						os.mkdir('exports/gameflow/plays')
+
+					with open('exports/gameflow/plays/' + str(game_id)\
+					+ '.csv', 'w') as output:
+						writer = scv.writer(output, lineterminator='\n')
+						writer.writerow(['game_id', 'team', 'summary',\
+						'description'])
+
+						for play in result.plays:
+							writer.writerow([game_id, play.team,\
+							play.summary, play.description])
+
+					with open('exports/gameflow/drives/' + str(game_id)\
+					+ '.csv', 'w') as output:
+						writer = scv.writer(output, lineterminator='\n')
+						writer.writerow(['game_id', 'team', 'result',\
+						'summary', 'home_team', 'home_score',\
+						'away_team', 'away_score'])
+
+						for drive in result.drives:
+							writer.writerow([game_id, drive.team,\
+							drive.result, drive.summary,\
+							drive.home_team, drive.home_score,\
+							drive.away_team, drive.away_score])
+
+	time_elapsed = time.clock() - start_time
+	print('Finished trawling ' + data + ' data for ' + str(year)\
+	+ ' season, weeks ' + str(start_week) + ' to ' + str(end_week))
+
+	if time_elapsed > 3600:
+		print('in ' + str(time_elapsed/3600) + ' hours')
+
+	elif time_elapsed > 60:
+		print('in ' + str(time_elapsed/60) + ' minutes')
+
+	else:
+		print('in ' + str(time_elapsed) + ' seconds')

@@ -33,8 +33,8 @@ class Metadata:
 
 
 	def __init__(self, game_id='', venue='', date_time='', network='',\
-	town='', zipcode='', odds='', attendance=''):
-		self.gameid = game_id
+	town='', zipcode='', odds='', attendance='', capacity=''):
+		self.game_id = game_id
 		self.venue = venue
 		self.date_time = date_time
 		self.network = network
@@ -42,16 +42,16 @@ class Metadata:
 		self.zipcode = zipcode
 		self.odds = odds
 		self.attendance = attendance
+		self.capacity = capacity
 
 
-class Metadata_Extracter(HTMLParser):
+class Metadata_Extractor(HTMLParser):
 
 
 	def reset(self):
 		HTMLParser.reset(self)
 		self.in_information = False
 		self.in_venue = False
-		self.in_date_time = False
 		self.in_network = False
 		self.in_town = False
 		self.in_zipcode = False
@@ -59,15 +59,17 @@ class Metadata_Extracter(HTMLParser):
 		self.in_odds = False
 		self.in_attendance = False
 		self.pattern = '.*?gameId=(.*)'
-		self.matchup = Matchup()
+		self.network_pattern = 'Coverage: ?(.*)'
+		self.attendance_pattern = 'Attendance: ?(.*)'
+		self.capacity_pattern = 'Capacity: ?(.*)'
+		self.matchup = Metadata()
 
 
 	def handle_starttag(self, tag, attrs):
 
 		if tag == 'a':
 
-			if ('name', '&lpos=ncf:game:post:subnav:gamecast')\
-			in attrs and self.in_information:
+			if ('name', '&lpos=ncf:game:post:subnav:gamecast') in attrs:
 
 				for key, value in attrs:
 
@@ -82,8 +84,11 @@ class Metadata_Extracter(HTMLParser):
 
 		elif tag == 'div':
 
-			if (('class', 'game-location') in attrs\
-			or ('class', 'caption_wrapper') in attrs)\
+			if ('class', 'game-location') in attrs\
+			and self.in_information:
+				self.in_venue = True
+
+			elif ('class', 'caption-wrapper') in attrs\
 			and self.in_information:
 				self.in_venue = True
 
@@ -93,7 +98,7 @@ class Metadata_Extracter(HTMLParser):
 
 			elif ('class', 'game-network') in attrs\
 			and self.in_information:
-				self.in_date_time = True
+				self.in_network = True
 
 			elif ('class', 'odds-details') in attrs\
 			and self.in_information:
@@ -106,7 +111,7 @@ class Metadata_Extracter(HTMLParser):
 		elif tag == 'li':
 
 			if ('class', 'icon-font-before icon-location-solid-before')\
-			and self.in_information:
+			and self.in_information and self.matchup.town == '':
 				self.in_town = True
 
 			elif self.in_odds_details:
@@ -114,48 +119,63 @@ class Metadata_Extracter(HTMLParser):
 
 		elif tag == 'span':
 
-			if self.in_town:
+			if ('data-behavior', 'date_time') in attrs:
+
+				for key, value in attrs:
+
+					if key == 'data-date':
+						self.matchup.date_time = value
+
+			elif self.matchup.town != '' and self.matchup.zipcode == '':
 				self.in_zipcode = True
 
 
 	def handle_data(self, data):
 
 		if self.in_venue:
-			self.matchup.venue = data
+			self.matchup.venue = data.strip()
 			self.in_venue = False
 
-		elif self.in_date_time:
-			self.matchup.date_time = data
-			self.in_date_time = False
-
 		elif self.in_network:
-			self.matchup.network = data
+			self.matchup.network = \
+			re.search(self.network_pattern, data.strip()).group(1)
 			self.in_network = False
 
 		elif self.in_town:
-			self.matchup.town = data
-
-		elif self.in_zipcode:
-			self.matchup.zipcode = data
-			self.in_zipcode = False
+			self.matchup.town = data.strip()
 			self.in_town = False
 
+		elif self.in_zipcode:
+			self.matchup.zipcode = data.strip()
+			self.in_zipcode = False
+
 		elif self.in_odds:
-			self.matchup.odds = data
+			self.matchup.odds = data.strip()
 			self.in_odds = False
 			self.in_odds_details = False
 
 		elif self.in_attendance:
-			self.matchup.attendance = data
+			if self.matchup.attendance == '':
+				try:
+					self.matchup.attendance = \
+					re.search(self.attendance_pattern, data.strip())\
+					.group(1)
+				except:
+					self.matchup.attendance = 'null'
+			elif self.matchup.capacity == '':
+				try:
+					self.matchup.capacity = \
+					re.search(self.capacity_pattern, data.strip())\
+					.group(1)
+				except:
+					self.matchup.capacity = 'null'
 			self.in_attendance = False
 
 
 	def handle_endtag(self, tag):
 
 		if tag == 'article':
-			
-			if self.in_information:
-				self.in_information = False
+			self.in_information = False
 
 
 	def getResults(self, url):
