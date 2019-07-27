@@ -111,21 +111,22 @@ def coordinator(year, week, weeks=1, data='all'):
 				+ str(i) + '.csv', 'w') as output:
 					writer = csv.writer(output, lineterminator='\n')
 					writer.writerow(['game_id', 'venue', 'date_time',\
-					'network', 'town', 'zipcode', 'odds', 'attendance',\
-					'capcity'])
+					'network', 'town', 'zipcode', 'line', 'over_under',\
+					'attendance', 'capacity'])
 
 					for game_id in game_ids:
 						url = generate_url('metadata', game_id)
 						driver.get(url)
 						print('    * Loaded ' + url)
 						print('        * Extracting matchup metadata')
+						#print(driver.page_source)
 						result = Metadata_Extractor()\
 						.getResults(driver.page_source)
 						print('        * Writing results')
 						writer.writerow([result.game_id, result.venue,\
 						result.date_time, result.network, result.town,\
-						result.zipcode, result.odds, result.attendance,\
-						result.capacity])
+						result.zipcode, result.line, result.over_under,\
+						result.attendance, result.capacity])
 						delay = random.randrange(10)
 						print('        * Waiting ' + str(delay)\
 						+ ' seconds...')
@@ -169,7 +170,7 @@ def coordinator(year, week, weeks=1, data='all'):
 
 					with open('exports/gameflow/plays/' + str(game_id)\
 					+ '.csv', 'w') as output:
-						writer = scv.writer(output, lineterminator='\n')
+						writer = csv.writer(output, lineterminator='\n')
 						writer.writerow(['game_id', 'team', 'summary',\
 						'description'])
 
@@ -179,7 +180,7 @@ def coordinator(year, week, weeks=1, data='all'):
 
 					with open('exports/gameflow/drives/' + str(game_id)\
 					+ '.csv', 'w') as output:
-						writer = scv.writer(output, lineterminator='\n')
+						writer = csv.writer(output, lineterminator='\n')
 						writer.writerow(['game_id', 'team', 'result',\
 						'summary', 'home_team', 'home_score',\
 						'away_team', 'away_score'])
