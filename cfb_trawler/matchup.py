@@ -88,7 +88,7 @@ class Matchup_Extractor(HTMLParser):
 
 		elif tag == 'a':
 
-			if ('name', '&lpos=college-football:scoreboard:gamecast')\
+			if ('name', '&lpos=college-football:scoreboard:boxscore')\
 			in attrs and self.in_id_section:
 
 				for key, value in attrs:

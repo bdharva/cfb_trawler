@@ -34,10 +34,20 @@ import os
 import random
 import time
 
+def progress (i, n, length = 100, fill = '█'):
+	n = n + 1
+	fill_length = int(length * i // n)
+	bar = fill * fill_length + '-' * (length - fill_length)
+	percent = ('{0:.1f}').format(100 * (i / float(n)))
+	progress = '%s%% complete (%s/%s games)' % (percent, i, n)
+	print('\r\t%s %s' % (bar, progress), end = '\r')
+
+	if i == n:
+		print()
 
 def coordinator(year, week, weeks=1, data='all'):
 
-	start_time = time.clock()
+	start_time = time.time()
 	start_week = week
 	end_week = week + weeks
 
@@ -53,16 +63,17 @@ def coordinator(year, week, weeks=1, data='all'):
 		os.mkdir('exports')
 
 	for i in range(start_week, end_week):
-		print('Trawling week ' + str(i) + ' of the ' + str(year)\
-			+ ' season...')
+		print('\n\tTRAWLING WEEK ' + str(i) + ' OF THE ' + str(year)\
+			+ ' SEASON...')
 
 		if data == 'matchups' or data == 'all':
+			print('\n\tMATCHUPS')
 			url = generate_url('matchups', year, i)
+			print('\t- Loading matchups')
 			driver.get(url)
-			print('    * Loaded ' + url)
-			print('    * Extracting matchups')
+			print('\t- Extracting matchups')
 			results = Matchup_Extractor().getResults(driver.page_source)
-			print('    * Writing results')
+			print('\t- Writing results')
 
 			if not os.path.exists('exports/matchups'):
 				os.mkdir('exports/matchups')
@@ -76,22 +87,22 @@ def coordinator(year, week, weeks=1, data='all'):
 					'home_team_record', 'home_team_score'])
 
 				for result in results:
-					writer.writerow([year, week, result.game_id,\
+					writer.writerow([year, i, result.game_id,\
 					result.away_team.name, result.away_team.rank,\
 					result.away_team.record, result.away_team.score,\
 					result.home_team.name, result.home_team.rank,\
 					result.home_team.record, result.home_team.score])
 
-			print('    * Results written')
+			print('\t- Results written')
 			delay = random.randrange(10)
-			print('    * Waiting ' + str(delay) + ' seconds...')
 			time.sleep(delay)
 
 		if data == 'metadata' or data == 'all' or data == 'testing':
+			print('\n\tMETADATA\n')
 
 			if not os.path.exists('exports/matchups/' + str(year)\
 			+ '_week_' + str(i) + '.csv'):
-				print('    * Error: No matchups found')
+				print('\n\t* Error: No matchups found')
 
 			else:
 				game_ids = []
@@ -113,30 +124,26 @@ def coordinator(year, week, weeks=1, data='all'):
 					writer.writerow(['game_id', 'venue', 'date_time',\
 					'network', 'town', 'zipcode', 'line', 'over_under',\
 					'attendance', 'capacity'])
+					progress(0, len(game_ids), length = 50)
 
-					for game_id in game_ids:
+					for i, game_id in enumerate(game_ids):
 						url = generate_url('metadata', game_id)
 						driver.get(url)
-						print('    * Loaded ' + url)
-						print('        * Extracting matchup metadata')
-						#print(driver.page_source)
 						result = Metadata_Extractor()\
 						.getResults(driver.page_source)
-						print('        * Writing results')
 						writer.writerow([result.game_id, result.venue,\
 						result.date_time, result.network, result.town,\
 						result.zipcode, result.line, result.over_under,\
 						result.attendance, result.capacity])
 						delay = random.randrange(10)
-						print('        * Waiting ' + str(delay)\
-						+ ' seconds...')
 						time.sleep(delay)
+						progress(i, len(game_ids), length = 50)
 
 		if data == 'gameflow' or data == 'all':
-
+			print('\n\tGAMEFLOW\n')
 			if not os.path.exists('exports/matchups/' + str(year)\
 			+ '_week_' + str(i) + '.csv'):
-				print('    * Error: No matchups found')
+				print('\n\t* Error: No matchups found')
 
 			else:
 				game_ids = []
@@ -149,16 +156,14 @@ def coordinator(year, week, weeks=1, data='all'):
 					for row in reader:
 						game_ids.append(row[2])
 
-				for game_id in game_ids:
+				progress(0, len(game_ids), length = 50)
+
+				for i, game_id in enumerate(game_ids):
 					url = generate_url('gameflow', game_id)
-					print(url)
 					driver.get(url)
-					print('    * Loaded ' + url)
-					print('    * Extracting gameflow')
 					result = Gameflow_Extractor()\
 					.getResults(driver.page_source)
-					print('    * Writing results')
-
+					
 					if not os.path.exists('exports/gameflow'):
 						os.mkdir('exports/gameflow')
 
@@ -182,24 +187,32 @@ def coordinator(year, week, weeks=1, data='all'):
 					+ '.csv', 'w') as output:
 						writer = csv.writer(output, lineterminator='\n')
 						writer.writerow(['game_id', 'team', 'result',\
-						'summary', 'home_team', 'home_score',\
-						'away_team', 'away_score'])
+						'summary', 'away_team', 'away_score', 'home_team', 'home_score'])
 
 						for drive in result.drives:
 							writer.writerow([game_id, drive.team,\
 							drive.result, drive.summary,\
-							drive.home_team, drive.home_score,\
-							drive.away_team, drive.away_score])
+							drive.away_team, drive.away_score, drive.home_team, drive.home_score])
 
-	time_elapsed = time.clock() - start_time
-	print('Finished trawling ' + data + ' data for ' + str(year)\
-	+ ' season, weeks ' + str(start_week) + ' to ' + str(end_week))
+					delay = random.randrange(10)
+					time.sleep(delay)
+					progress(i, len(game_ids), length = 50)
 
-	if time_elapsed > 3600:
-		print('in ' + str(time_elapsed/3600) + ' hours')
+	time_elapsed = time.time() - start_time
+	print('\n\tFINISHED TRAWLING ' + data.upper() + ' DATA FOR ' + str(year)\
+		+ ' SEASON, WEEK', end='')
 
-	elif time_elapsed > 60:
-		print('in ' + str(time_elapsed/60) + ' minutes')
+	if weeks == 1:
+		print(' ' + str(start_week), end='')
 
 	else:
-		print('in ' + str(time_elapsed) + ' seconds')
+		print('S ' + str(start_week) + ' TO ' + str(end_week - 1), end='')
+
+	if time_elapsed > 3600:
+		print(' IN ' + ('{0:.1f}').format(time_elapsed/3600) + ' HOURS\n')
+
+	elif time_elapsed > 60:
+		print(' IN ' + ('{0:.1f}').format(time_elapsed/60) + ' MINUTES\n')
+
+	else:
+		print(' IN ' + ('{0:.1f}').format(time_elapsed) + ' SECONDS\n')

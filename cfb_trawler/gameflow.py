@@ -33,33 +33,33 @@ import re
 class Drive:
 
 
-	def __init__(self, team='', result='', summary='', home_team='',\
-	home_score='', away_team='', away_score=''):
-		self.team = team
-		self.result = result
-		self.summary = summary
-		self.home_team = home_team
-		self.home_score = home_score
-		self.away_team = away_team
-		self.away_score = away_score
+	def __init__(self):
+		self.team = ''
+		self.result = ''
+		self.summary = ''
+		self.away_team = ''
+		self.away_score = ''
+		self.home_team = ''
+		self.home_score = ''
+		
 
 
 class Play:
 
 	
-	def __init__(self, team='', summary='', description=''):
-		self.team = team
-		self.summary = summary
-		self.description = description
+	def __init__(self):
+		self.team = ''
+		self.summary = ''
+		self.description = ''
 
 
 class Gameflow:
 
 
-	def __init__(self, game_id='', drives=[], plays=[]):
-		self.game_id = game_id
-		self.drives = drives
-		self.plays = plays
+	def __init__(self):
+		self.game_id = ''
+		self.drives = []
+		self.plays = []
 
 
 class Gameflow_Extractor(HTMLParser):
@@ -67,6 +67,8 @@ class Gameflow_Extractor(HTMLParser):
 
 	def reset(self):
 		HTMLParser.reset(self)
+		self.in_away_header = False
+		self.in_home_header = False
 		self.in_plays = False
 		self.in_drives = False
 		self.in_header = False
@@ -84,25 +86,26 @@ class Gameflow_Extractor(HTMLParser):
 		self.play = Play()
 		self.drive = Drive()
 		self.active_team = ''
+		self.home_team_logo = ''
+		self.away_team_logo = ''
 		self.pattern = '.*?gameId=(.*)'
 
 
 	def handle_starttag(self, tag, attrs):
 
-		if tag == 'article':
-			if ('class', 'sub-module play-by-play') in attrs:
-				self.in_plays = True
+		if tag == 'meta':
 
-		elif tag == 'a':
-
-			if ('name', '&lpos=ncf:game:post:subnav:gamecast')\
-			in attrs and self.in_information:
+			if ('property', 'og:url') in attrs:
 
 				for key, value in attrs:
 
-					if key == 'href':
+					if key == 'content':
 						self.game.game_id =\
 						re.search(self.pattern, value).group(1)
+
+		elif tag == 'article':
+			if ('class', 'sub-module play-by-play') in attrs:
+				self.in_plays = True
 
 		elif tag == 'div':
 
@@ -114,6 +117,12 @@ class Gameflow_Extractor(HTMLParser):
 			and self.in_drives:
 				self.in_header = True
 
+			elif ('class', 'team away') in attrs:
+				self.in_away_header = True
+
+			elif ('class', 'team home') in attrs:
+				self.in_home_header = True
+
 		elif tag == 'span':
 
 			if ('class', 'headline') in attrs and self.in_header:
@@ -124,10 +133,10 @@ class Gameflow_Extractor(HTMLParser):
 				self.in_drive_details = True
 
 			elif ('class', 'home') in attrs and self.in_header:
-				self.in_home = True
+				self.in_away = True
 
 			elif ('class', 'away') in attrs and self.in_header:
-				self.in_away = True
+				self.in_home = True
 
 			elif ('class', 'team-name') in attrs\
 			and (self.in_home or self.in_away):
@@ -157,12 +166,30 @@ class Gameflow_Extractor(HTMLParser):
 
 		elif tag == 'img':
 
-			if ('class', 'team-logo imageLoaded') in attrs and self.in_header:
+			for key, value in attrs:
 
-				for key, value in attrs:
+				if (key == 'class' and value.split()[0] == 'team-logo') and\
+				(self.in_header or self.in_away_header or self.in_home_header):
 
-					if key == 'src':
-						self.active_team = value.strip()
+					for key, value in attrs:
+
+						if key == 'src':
+
+							if self.in_header:
+
+								if value.strip() == self.away_team_logo:
+									self.active_team = 'away'
+
+								elif value.strip() == self.home_team_logo:
+									self.active_team = 'home'
+
+							elif self.in_away_header:
+								self.away_team_logo = value.strip()
+								self.in_away_header = False
+
+							elif self.in_home_header:
+								self.home_team_logo = value.strip()
+								self.in_home_header = False
 
 	def handle_data(self, data):
 
@@ -174,27 +201,29 @@ class Gameflow_Extractor(HTMLParser):
 			self.drive.summary = data.strip()
 			self.in_drive_details = False
 
-		elif self.in_home:
+		elif self.in_name:
 
-			if self.in_name:
-				self.drive.home_team = data.strip()
-				self.in_name = False
-
-			elif self.in_score:
-				self.drive.home_score = data.strip()
-				self.in_score = False
-				self.in_home = False
-
-		elif self.in_away:
-
-			if self.in_name:
+			if self.in_away:
 				self.drive.away_team = data.strip()
 				self.in_name = False
 
-			elif self.in_score:
+			if self.in_home:
+				self.drive.home_team = data.strip()
+				self.in_name = False
+
+		elif self.in_score:
+
+			if self.in_away:
 				self.drive.away_score = data.strip()
-				self.games.drives.append(copy.deepcopy(self.drive))
+				self.in_score = False
 				self.in_away = False
+
+			elif self.in_home:
+				self.drive.home_score = data.strip()
+				self.drive.team = self.active_team
+				self.game.drives.append(copy.deepcopy(self.drive))
+				self.in_score = False
+				self.in_home = False
 				self.in_header = False
 				self.drive = Drive()
 
