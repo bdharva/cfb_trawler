@@ -35,10 +35,9 @@ import random
 import time
 
 def progress (i, n, length = 100, fill = '█'):
-	n = n + 1
 	fill_length = int(length * i // n)
 	bar = fill * fill_length + '-' * (length - fill_length)
-	percent = ('{0:.1f}').format(100 * (i / float(n)))
+	percent = ('{0:.1f}').format(100.0 * (i / n))
 	progress = '%s%% complete (%s/%s games)' % (percent, i, n)
 	print('\r\t%s %s' % (bar, progress), end = '\r')
 
@@ -126,7 +125,7 @@ def coordinator(year, week, weeks=1, data='all'):
 					'attendance', 'capacity'])
 					progress(0, len(game_ids), length = 50)
 
-					for i, game_id in enumerate(game_ids):
+					for j, game_id in enumerate(game_ids):
 						url = generate_url('metadata', game_id)
 						driver.get(url)
 						result = Metadata_Extractor()\
@@ -135,9 +134,9 @@ def coordinator(year, week, weeks=1, data='all'):
 						result.date_time, result.network, result.town,\
 						result.zipcode, result.line, result.over_under,\
 						result.attendance, result.capacity])
+						progress(j + 1, len(game_ids), length = 50)
 						delay = random.randrange(10)
 						time.sleep(delay)
-						progress(i, len(game_ids), length = 50)
 
 		if data == 'gameflow' or data == 'all':
 			print('\n\tGAMEFLOW\n')
@@ -158,7 +157,7 @@ def coordinator(year, week, weeks=1, data='all'):
 
 				progress(0, len(game_ids), length = 50)
 
-				for i, game_id in enumerate(game_ids):
+				for j, game_id in enumerate(game_ids):
 					url = generate_url('gameflow', game_id)
 					driver.get(url)
 					result = Gameflow_Extractor()\
@@ -194,9 +193,9 @@ def coordinator(year, week, weeks=1, data='all'):
 							drive.result, drive.summary,\
 							drive.away_team, drive.away_score, drive.home_team, drive.home_score])
 
+					progress(j + 1, len(game_ids), length = 50)
 					delay = random.randrange(10)
 					time.sleep(delay)
-					progress(i, len(game_ids), length = 50)
 
 	time_elapsed = time.time() - start_time
 	print('\n\tFINISHED TRAWLING ' + data.upper() + ' DATA FOR ' + str(year)\
