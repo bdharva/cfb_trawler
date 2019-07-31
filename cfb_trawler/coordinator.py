@@ -34,15 +34,37 @@ import os
 import random
 import time
 
-def progress (i, n, length = 100, fill = '█'):
-	fill_length = int(length * i // n)
-	bar = fill * fill_length + '-' * (length - fill_length)
-	percent = ('{0:.1f}').format(100.0 * (i / n))
-	progress = '%s%% complete (%s/%s games)' % (percent, i, n)
-	print('\r\t%s %s' % (bar, progress), end = '\r')
 
-	if i == n:
-		print()
+class ProgressBar:
+
+
+	def __init__(self, i=0, n=1, length=100, fill='█'):
+		self.i = i
+		self.n = n
+		self.length = length
+		self.fill = fill
+		self.calcs()
+
+
+	def calcs (self):
+		fill_length = int(self.length * self.i // self.n)
+		self.bar = self.fill * fill_length + '-' * (self.length - fill_length)
+		percent = ('{0:.1f}').format(100.0 * (self.i / self.n))
+		self.progress = '%s%% complete (%s/%s games)' % (percent, self.i, self.n)
+
+
+	def increment (self):
+		self.i += 1
+		self.calcs()
+		self.show()
+
+
+	def show (self):
+		print('\r\t%s %s' % (self.bar, self.progress), end = '\r')
+
+		if self.i == self.n:
+			print()
+
 
 def coordinator(year, week, weeks=1, data='all'):
 
@@ -123,9 +145,10 @@ def coordinator(year, week, weeks=1, data='all'):
 					writer.writerow(['game_id', 'venue', 'date_time',\
 					'network', 'town', 'zipcode', 'line', 'over_under',\
 					'attendance', 'capacity'])
-					progress(0, len(game_ids), length = 50)
+					progress = ProgressBar(0, len(game_ids), 50)
+					progress.show()
 
-					for j, game_id in enumerate(game_ids):
+					for game_id in game_ids:
 						url = generate_url('metadata', game_id)
 						driver.get(url)
 						result = Metadata_Extractor()\
@@ -134,7 +157,7 @@ def coordinator(year, week, weeks=1, data='all'):
 						result.date_time, result.network, result.town,\
 						result.zipcode, result.line, result.over_under,\
 						result.attendance, result.capacity])
-						progress(j + 1, len(game_ids), length = 50)
+						progress.increment()
 						delay = random.randrange(10)
 						time.sleep(delay)
 
@@ -155,9 +178,10 @@ def coordinator(year, week, weeks=1, data='all'):
 					for row in reader:
 						game_ids.append(row[2])
 
-				progress(0, len(game_ids), length = 50)
+				progress = ProgressBar(0, len(game_ids), 50)
+				progress.show()
 
-				for j, game_id in enumerate(game_ids):
+				for game_id in game_ids:
 					url = generate_url('gameflow', game_id)
 					driver.get(url)
 					result = Gameflow_Extractor()\
@@ -193,7 +217,7 @@ def coordinator(year, week, weeks=1, data='all'):
 							drive.result, drive.summary,\
 							drive.away_team, drive.away_score, drive.home_team, drive.home_score])
 
-					progress(j + 1, len(game_ids), length = 50)
+					progress.increment()
 					delay = random.randrange(10)
 					time.sleep(delay)
 
